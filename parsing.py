@@ -1,6 +1,7 @@
 import pandas as pd
 from datetime import datetime
 from bs4 import BeautifulSoup
+import re
 
 def get_aggreagate_data_from_logs(file_path):
     df = pd.read_csv(file_path)
@@ -33,8 +34,11 @@ def get_aggreagate_data_from_logs(file_path):
     total_students = df['Полное имя пользователя'].nunique()
 
     # Подсчет времени первого просмотра курса для каждого студента
-    first_view_times = \
-        df[df['Название события'].str.contains('Курс просмотрен', na=False)].groupby('Полное имя пользователя')['Время'].min()
+    first_view_times = (
+        df[df['Название события'].str.contains('Курс просмотрен', na=False)]
+        .groupby('Полное имя пользователя')['Время']
+        .min()
+    )
 
     # Сортировка времён первого просмотра по возрастанию
     sorted_first_view_times = first_view_times.sort_values()
@@ -58,8 +62,8 @@ def get_aggreagate_data_from_logs(file_path):
     df['Просмотр модуля'] = df['Название события'].str.contains('Модуль курса просмотрен', na=False)
     df['Просмотр ошибок'] = df['Название события'].str.contains('Попытка теста просмотрена', na=False)
     df['Просмотр своей оценки'] = df['Название события'].str.contains('Отзыв просмотрен', na=False)
-    # df['Скачивание файла'] = df['Название события'].str.contains('Скачивание файла', na=False)
-    df['Выполненные задания'] = df['Название события'].str.contains('Работа представлена', na=False)
+    df['Выполненные задания'] = df['Название события'].isin(['Работа представлена', 'Попытка теста завершена и отправлена на оценку'])
+    df['Оцененные задания'] = df['Название события'].str.contains('Пользователю поставлена оценка', na=False)
 
     # Группировка данных по студенту
     grouped = df.groupby('Полное имя пользователя')
@@ -77,7 +81,32 @@ def get_aggreagate_data_from_logs(file_path):
         result[f'Число просмотров модулей {percentage}'] = grouped_filtered['Просмотр модуля'].sum().reindex(result.index, fill_value=0)
         result[f'Число просмотров своих ошибок {percentage}'] = grouped_filtered['Просмотр ошибок'].sum().reindex(result.index, fill_value=0)
         result[f'Количество выполненных заданий {percentage}'] = grouped_filtered['Выполненные задания'].sum().reindex(result.index, fill_value=0)
-        # result[f'Число скачанных файлов {percentage}'] = grouped_filtered['Скачивание файла'].sum().reindex(result.index, fill_value=0)
+
+        # Сбор названий выполненных заданий
+        completed_assignments = (
+            filtered_df[filtered_df['Название события'].isin(
+                ['Работа представлена', 'Попытка теста завершена и отправлена на оценку'])]
+            .groupby('Затронутый пользователь')['Контекст события']
+            .apply(lambda x: '(,)'.join(x.unique()))
+            .str.replace(" ", "")  # удаляем пробелы
+            .reindex(result.index, fill_value='')
+        )
+        result[f'Выполненные задания {percentage}'] = completed_assignments
+
+        # Сбор айди оцененных заданий
+        graded_assignments = (
+            filtered_df[filtered_df['Название события'].str.contains('Пользователю поставлена оценка', na=False)]
+            .copy()
+        )
+        graded_assignments['Grade Item ID'] = graded_assignments['Описание'].apply(
+            lambda x: re.search(r"for the grade item with id '(\d+)'", x).group(1) if re.search(r"for the grade item with id '(\d+)'", x) else None
+        )
+        graded_assignments_ids = (
+            graded_assignments.groupby('Затронутый пользователь')['Grade Item ID']
+            .apply(lambda x: '(,)'.join(x.dropna().unique()))
+            .reindex(result.index, fill_value='')
+        )
+        result[f'Оцененные задания {percentage}'] = graded_assignments_ids
 
         # Среднее время между заходами для текущего интервала
         result[f'Среднее время между заходами {percentage}'] = grouped_filtered.apply(
@@ -86,9 +115,6 @@ def get_aggreagate_data_from_logs(file_path):
         ).apply(lambda x: x.total_seconds() / 60 if pd.notnull(x) else 0).reindex(result.index, fill_value=0)
 
     return result
-
-from bs4 import BeautifulSoup
-import pandas as pd
 
 def parsing_html_file(file_path):
     # Чтение HTML-файла
@@ -141,14 +167,6 @@ def parsing_html_file(file_path):
                 if "Итого в категории" in item_name:
                     continue
 
-                # Удаляем подстроку " (Значение)" из названия элемента
-                item_name = item_name.replace(" (Значение)", "")
-
-                # Проверяем наличие атрибута alt в теге <img>
-                img_element = item_name_element.find('img')
-                if img_element and 'alt' in img_element.attrs:
-                    item_name += ":"
-
                 # Увеличиваем счетчик элементов контроля для текущей категории
                 category_item_counts[current_category] += 1
 
@@ -184,6 +202,9 @@ def parsing_html_file(file_path):
             if ignore_items:
                 continue
 
+            # Извлечение ID элемента контроля
+            item_id = row.get('data-itemid', None)
+
             # Извлечение названия элемента контроля
             item_name_element = row.find(['a', 'span'], class_='gradeitemheader')  # Ищем как <a>, так и <span>
             if item_name_element:
@@ -198,7 +219,7 @@ def parsing_html_file(file_path):
                 continue  # Пропускаем этот элемент
 
             # Удаляем подстроку " (Значение)" из названия элемента
-            # item_name = item_name.replace(" (Значение)", "")
+            item_name = item_name.replace(" (Значение)", "").replace(" ", "")
 
             # Проверяем наличие атрибута alt в теге <img>
             img_element = item_name_element.find('img')
@@ -235,6 +256,7 @@ def parsing_html_file(file_path):
             data.append({
                 "Category": current_category,
                 "Item": item_name,
+                "Item ID": item_id,  # Добавляем ID элемента контроля
                 "Category Weight": current_category_weight,
                 "Item Weight": item_weight,
                 "Final Weight": final_weight,
@@ -250,12 +272,23 @@ df_aggregate_data = get_aggreagate_data_from_logs('data/2_Логи.csv')
 
 df_weights = parsing_html_file('data/Оценки_ Настройки0.html')
 
+# print(df_weights['Item'])
+
 # Чтение данных из файла с оценками
 file_path_grades = 'data/2_Оценки.xlsx'
 df_grades = pd.read_excel(file_path_grades)
 
-# Инициализация итоговой оценки
-df_aggregate_data['Оценка за курс'] = 0.0
+# Обновляем только те заголовки, которые содержат '(Значение)'
+updated_columns = [
+    col.replace(" (Значение)", "").replace(" ", "")
+    if "(Значение)" in col else col
+    for col in df_grades.columns
+]
+df_grades.columns = updated_columns
+
+print(df_grades.columns)
+
+num_of_students = len(df_grades)
 
 # Преобразуем все оценки в числа
 for col in df_grades.columns:
@@ -265,6 +298,13 @@ for col in df_grades.columns:
 # Создаем словарь весов и максимальных оценок
 weights_dict = df_weights.set_index('Item').to_dict(orient='index')
 
+weights_dict = {
+    key.replace("(Значение)", "").replace(" ", ""): value
+    for key, value in weights_dict.items()
+}
+
+print(weights_dict.keys())
+
 # Преобразуем индекс в столбец и приводим к строковому типу
 df_aggregate_data = df_aggregate_data.reset_index()
 df_aggregate_data['Полное имя пользователя'] = df_aggregate_data['index'].astype(str)
@@ -273,10 +313,6 @@ df_aggregate_data.drop('index', axis=1, inplace=True)
 # Приводим к строковому типу в df_grades
 df_grades['Полное имя пользователя'] = df_grades['Фамилия'].astype(str) + ' ' + df_grades['Имя'].astype(str)
 
-# print(df_weights.head())
-# print(df_aggregate_data.head())
-# print(df_grades.head())
-
 # Объединяем данные
 df_aggregate_data = df_aggregate_data.merge(
     df_grades[['Полное имя пользователя']],
@@ -284,56 +320,90 @@ df_aggregate_data = df_aggregate_data.merge(
     how='inner'
 )
 
-print(len(df_aggregate_data))
-
 # Сбрасываем индекс для правильной работы с данными
 df_aggregate_data.reset_index(drop=True, inplace=True)
 
 # Инициализация итоговой оценки
-df_aggregate_data['Оценка за курс'] = 0.0
+# df_aggregate_data['Оценка за курс'] = 0.0
 
 # Расчет итоговой оценки с объединением по ФИО
-for element in df_weights['Item']:
-    matching_columns = [col for col in df_grades.columns if element.strip().replace(" ", "") == col.strip().replace(" ", "")]
-
-    if not matching_columns:
-        print(f"Элемент '{element}' не найден")
-        continue
-
-    for col in matching_columns:
-        if element not in weights_dict:
-            print(f"Нет весов для '{element}'")
-            continue
-
-        max_score = weights_dict[element].get('Max Score', 0)
-        weight = weights_dict[element].get('Final Weight', 0)
-
-        # Создаем временный DataFrame для расчета
-        temp_df = df_grades[['Полное имя пользователя', col]].copy()
-        temp_df['contribution'] = (temp_df[col].astype(float) * 10 / max_score) * weight
-
-        # Объединяем с основными данными
-        df_aggregate_data = df_aggregate_data.merge(
-            temp_df[['Полное имя пользователя', 'contribution']],
-            on='Полное имя пользователя',
-            how='left'
+# Для каждой колонки с выполненными заданиями и оцененными заданиями
+for col in df_aggregate_data.columns:
+    if col.startswith("Выполненные задания") or col.startswith("Оцененные задания"):
+        # Инициализация столбца для оценки за интервал
+        interval_percentage = col.split()[-1]  # Например, "10%"
+        df_aggregate_data[f'Оценка за интервал {interval_percentage}'] = (
+            df_aggregate_data.get(f'Оценка за интервал {interval_percentage}', 0)
         )
 
-        # Суммируем вклад
-        df_aggregate_data['Оценка за курс'] += temp_df['contribution']
-        df_aggregate_data.drop('contribution', axis=1, inplace=True)
-        # print(df_aggregate_data['Оценка за курс'][0])
+        # Для каждого студента в df_aggregate_data
+        for index, row in df_aggregate_data.iterrows():
+            assignments_str = row[col]  # Список выполненных или оцененных заданий через запятую
+            if not isinstance(assignments_str, str):
+                continue  # Пропускаем, если нет данных
 
+            # Разделяем названия заданий по запятой
+            assignments_list = [assignment.strip() for assignment in assignments_str.split("(,)")]
 
-# Объединение таблиц внутренним соединением
-# result = df_aggregate_data.merge(df_grades, left_index=True, right_on='Полное имя пользователя', how='inner')
+            if len(assignments_list) == 0:
+                continue
 
-# Перемещение ФИО студента на первое место
-# result = df_aggregate_data.set_index('Полное имя пользователя').reset_index()
+            # Рассчитываем вклад для каждого задания
+            for element in assignments_list:
+                if element == "":
+                    continue
+
+                # Если это колонка "Оцененные задания", используем ID из df_weights
+                if col.startswith("Оцененные задания"):
+                    # Ищем элемент в df_weights по Item ID
+                    matching_item = None
+                    for item_name, item_data in weights_dict.items():
+                        if str(item_data.get('Item ID')) == element:
+                            matching_item = item_name
+                            break
+
+                    if not matching_item:
+                        # print(f"Элемент с ID '{element}' не найден в weights_dict")
+                        continue
+
+                    # Получаем название элемента, максимальную оценку и вес из weights_dict
+                    element_name = matching_item
+                    max_score = weights_dict[element_name].get('Max Score', 0)
+                    weight = weights_dict[element_name].get('Final Weight', 0)
+
+                else:
+                    # Если это колонка "Выполненные задания", используем название элемента напрямую
+                    # element_name = element
+                    # if element_name not in weights_dict:
+                    #     # print(f"Нет весов для '{element_name}'")
+                    #     continue
+                    #
+                    # max_score = weights_dict[element_name].get('Max Score', 0)
+                    # weight = weights_dict[element_name].get('Final Weight', 0)
+                    continue
+
+                # Проверяем, есть ли соответствующая колонка в df_grades
+                matching_columns = [
+                    col_grade for col_grade in df_grades.columns
+                    if element_name.replace(" ", "") == col_grade.replace(" ", "")
+                ]
+
+                if not matching_columns:
+                    print(f"Элемент '{element_name}' не найден в df_grades")
+                    continue
+
+                # Создаем временный DataFrame для расчета
+                temp_df = df_grades[['Полное имя пользователя', matching_columns[0]]].copy()
+                temp_df['contribution'] = (temp_df[matching_columns[0]].astype(float) * 10 / max_score) * weight
+
+                # Фильтруем только текущего студента
+                student_contribution = temp_df[temp_df['Полное имя пользователя'] == row['Полное имя пользователя']]['contribution'].sum()
+
+                # Добавляем вклад к оценке за интервал
+                df_aggregate_data.at[index, f'Оценка за интервал {interval_percentage}'] += student_contribution
 
 # Заполнение пропусков нулями
 result = df_aggregate_data.fillna(0)
-# print(df_aggregate_data['Оценка за курс'])
 
 # Сохранение результата в новый Excel-файл
 output_file = 'data/Агрегированные_данные_проценты.xlsx'
