@@ -1,16 +1,19 @@
 import pandas as pd
 from datetime import datetime
 from bs4 import BeautifulSoup
-import re
 
 def get_aggreagate_data_from_logs(file_path):
-    df = pd.read_csv(file_path)
+    df = pd.read_excel(file_path)
+
+    # df = pd.read_excel(file_path)
+
+    df['Время'] = df['Время'].astype(str) + ',' + df['ВремяДата'].astype(str)
 
     # Исключение студентов "-" и "smartlms service"
     df = df[~df['Полное имя пользователя'].isin(["-", "smartlms service"])]
 
     # Преобразование столбца 'Дата' в формат datetime
-    df['Время'] = pd.to_datetime(df['Время'], format='%d/%m/%y, %H:%M:%S')
+    df['Время'] = pd.to_datetime(df['Время'], format='%Y-%m-%d, %H:%M:%S')
 
     # Определение названия курса из самой ранней строки
     course_name = df.sort_values('Время')['Контекст события'].iloc[0]
@@ -20,16 +23,17 @@ def get_aggreagate_data_from_logs(file_path):
     start_year, end_year = map(int, year_range.split("/"))  # Разделяем на 2023 и 2024
 
     # Определение максимального номера модуля
-    # max_module = int(course_name.split("модули:")[1].split(")")[0].split(",")[-1].strip())
-
-    max_module = int(course_name.split("modules:")[1].split(")")[0].split(",")[-1].strip())
+    modules = course_name.split("модули:")[1].split(")")[0].strip().split(",")
+    modules = [int(m.strip()) for m in modules]
+    min_module = min(modules)
+    max_module = max(modules)
 
     # Словарь с четвертями
     quarters_end = {
         "Q1": datetime(1, 10, 31),
         "Q2": datetime(1, 12, 30),
         "Q3": datetime(1, 3, 31),
-        "Q4": datetime(1, 6, 1),
+        "Q4": datetime(1, 6, 30),
     }
 
     # Определение общего количества студентов
@@ -53,7 +57,20 @@ def get_aggreagate_data_from_logs(file_path):
     start_time = threshold_time.replace(year=start_year).normalize()
 
     # Определение конца курса
-    end_time = quarters_end[f"Q{max_module}"].replace(year=end_year)
+    if min_module <= 2:
+        # Если максимум 1 или 2 модуль, то конец курса в том же году
+        start_time = start_time.replace(year=start_year)
+    else:
+        # Если 3 или 4 модуль, то конец курса в следующем году
+        start_time = start_time.replace(year=end_year)
+
+    # Определение конца курса
+    if max_module <= 2:
+        # Если максимум 1 или 2 модуль, то конец курса в том же году
+        end_time = quarters_end[f"Q{max_module}"].replace(year=start_year)
+    else:
+        # Если 3 или 4 модуль, то конец курса в следующем году
+        end_time = quarters_end[f"Q{max_module}"].replace(year=end_year)
 
     # Вычисление временных меток для процентных интервалов
     percentages = [0.0, 0.2, 0.33, 0.50, 0.66, 1.0]  # Добавляем 0.0 как начальную точку
@@ -116,32 +133,43 @@ def get_aggreagate_data_from_logs(file_path):
 
         # 2. Кумулятивные метрики (0% → текущий интервал)
         # Сбор выполненных заданий (нарастающий итог)
+        # Для логов 1_
+        filtered_df_cumulative['ФИО'] = filtered_df_cumulative.apply(
+            lambda row: row['Полное имя пользователя'] if row[
+                                                              'Название события'] != 'Выполнение элемента курса обновлено' else
+            row['Затронутый пользователь'],
+            axis=1
+        )
+
+        completed_assignments = (
+            filtered_df_cumulative[filtered_df_cumulative['Название события'].isin(
+                ['Работа представлена.', 'Попытка теста завершена и отправлена на оценку',
+                 'Выполнение элемента курса обновлено'])]
+            .groupby('ФИО')['Контекст события']
+            .apply(lambda x: '(,)'.join(x.unique()))
+            .str.replace(" ", "")
+            .reindex(result.index, fill_value='')
+        )
+
+        #Для логов 4_
+        # filtered_df_cumulative['ФИО'] = filtered_df_cumulative.apply(
+        #     lambda row: row['Полное имя пользователя'] if row[
+        #                                                       'Название события'] != 'Представленный ответ был оценен.' else
+        #     row['Затронутый пользователь'],
+        #     axis=1
+        # )
+        #
         # completed_assignments = (
         #     filtered_df_cumulative[filtered_df_cumulative['Название события'].isin(
-        #         ['Работа представлена.', 'Попытка теста завершена и отправлена на оценку'])]
-        #     .groupby('Затронутый пользователь')['Контекст события']
+        #         ['Работа представлена.', 'Попытка теста завершена и отправлена на оценку',
+        #          'Представленный ответ был оценен.'])]
+        #     .groupby('ФИО')['Контекст события']
         #     .apply(lambda x: '(,)'.join(x.unique()))
         #     .str.replace(" ", "")
         #     .reindex(result.index, fill_value='')
         # )
-        # result[f'Выполненные задания {label}'] = completed_assignments
 
-        # Сбор оцененных заданий (нарастающий итог)
-        graded_assignments = (
-            filtered_df_cumulative[
-                filtered_df_cumulative['Название события'].str.contains('Пользователю поставлена оценка', na=False)]
-            .copy()
-        )
-        graded_assignments['Grade Item ID'] = graded_assignments['Описание'].apply(
-            lambda x: re.search(r"for the grade item with id '(\d+)'", x).group(1) if re.search(
-                r"for the grade item with id '(\d+)'", x) else None
-        )
-        graded_assignments_ids = (
-            graded_assignments.groupby('Затронутый пользователь')['Grade Item ID']
-            .apply(lambda x: '(,)'.join(x.dropna().unique()))
-            .reindex(result.index, fill_value='')
-        )
-        result[f'Оцененные задания {label}'] = graded_assignments_ids
+        result[f'Выполненные задания {label}'] = completed_assignments
 
     return result
 
@@ -300,27 +328,13 @@ def parsing_html_file(file_path):
 
     return df
 
-df_aggregate_data = get_aggreagate_data_from_logs('../../data/raw/9_логи_1.csv')
+df_aggregate_data = get_aggreagate_data_from_logs('../../data/raw/7_Логи.xlsx')
 
-df_weights = parsing_html_file('../../data/raw/9_Оценки_ Настройки0.html')
+# df_weights = pd.read_excel('../../data/5_weights.xlsx')
 
 # Чтение данных из файла с оценками
-file_path_grades = '../../data/raw/9_Оценки.xlsx'
+file_path_grades = '../../data/raw/7_Оценки.xlsx'
 df_grades = pd.read_excel(file_path_grades)
-
-# Обновляем только те заголовки, которые содержат '(Значение)'
-# updated_columns = [
-#     col.replace(" (Значение)", "").replace(" ", "")
-#     if "(Значение)" in col else col
-#     for col in df_grades.columns
-# ]
-
-updated_columns = [
-    col.replace(" (Real)", "").replace(" ", "")
-    if "(Real)" in col else col
-    for col in df_grades.columns
-]
-df_grades.columns = updated_columns
 
 # print(df_grades.columns)
 
@@ -328,18 +342,18 @@ num_of_students = len(df_grades)
 
 # Преобразуем все оценки в числа
 for col in df_grades.columns:
-    if col not in ['Фамилия', 'Имя', 'Адрес электронной почты', 'Индивидуальный номер', 'Данные о пользователе', 'User information', 'ID образовательной программы']:
+    if col not in ['ФИО', 'Адрес электронной почты', 'Индивидуальный номер', 'Данные о пользователе', 'User information', 'ID образовательной программы']:
         df_grades[col] = pd.to_numeric(df_grades[col], errors='coerce').fillna(0)
 
 # Создаем словарь весов и максимальных оценок
-weights_dict = df_weights.set_index('Item').to_dict(orient='index')
+# weights_dict = df_weights.set_index('Item').to_dict(orient='index')
+#
+# weights_dict = {
+#     key.replace("(Значение)", "").replace(" ", ""): value
+#     for key, value in weights_dict.items()
+# }
 
-weights_dict = {
-    key.replace("(Значение)", "").replace(" ", ""): value
-    for key, value in weights_dict.items()
-}
-
-print(weights_dict)
+# print(weights_dict)
 
 # Преобразуем индекс в столбец и приводим к строковому типу
 df_aggregate_data = df_aggregate_data.reset_index()
@@ -347,14 +361,77 @@ df_aggregate_data['Полное имя пользователя'] = df_aggregate
 df_aggregate_data.drop('index', axis=1, inplace=True)
 
 # Приводим к строковому типу в df_grades
-df_grades['Полное имя пользователя'] = df_grades['Фамилия'].astype(str) + ' ' + df_grades['Имя'].astype(str)
+df_grades['Полное имя пользователя'] = df_grades['ФИО'].astype(str) # + ' ' + df_grades['Имя'].astype(str)
 
-# Объединяем данные
+# Для добавления оценок из df_grades в df_aggregate_data
+# Нужно объединить таблицы так, чтобы все необходимые поля из df_grades появились в df_aggregate_data
+
+# Шаг 1. Объединяем по полю 'Полное имя пользователя' с нужными колонками
+def normalize_name(name):
+    # Заменяет 'ё' на 'е' в имени
+    return str(name).replace('ё', 'е').replace('Ё', 'Е')
+
+# Добавим нормализованное имя в оба датафрейма
+df_aggregate_data['Нормализованное ФИО'] = df_aggregate_data['Полное имя пользователя'].apply(normalize_name)
+df_grades['Нормализованное ФИО'] = df_grades['Полное имя пользователя'].apply(normalize_name)
+
+# Соединяем по нормализованному полю
 df_aggregate_data = df_aggregate_data.merge(
-    df_grades[['Полное имя пользователя']],
-    on='Полное имя пользователя',
+    df_grades[['Нормализованное ФИО',
+               'Лекции1', 'Семинары1', 'Лабы1', 'ДЗ1',
+               'Лекции2', 'Семинары2', 'Лабы2', 'ДЗ2']],
+    left_on='Нормализованное ФИО',
+    right_on='Нормализованное ФИО',
     how='inner'
 )
+
+# По желанию удаляем вспомогательное поле
+df_aggregate_data = df_aggregate_data.drop(columns=['Нормализованное ФИО'])
+
+# Шаг 2. Заполняем оценки по этапам формулами
+df_aggregate_data['Оценка за интервал 20%'] = (
+    0.4 * 0.05 * df_aggregate_data['Лекции1'] +
+    0.4 * 0.05 * df_aggregate_data['Семинары1'] +
+    0.4 * 0.2  * df_aggregate_data['Лабы1']
+)
+
+df_aggregate_data['Оценка за интервал 33%'] = (
+    0.66 * 0.05 * df_aggregate_data['Лекции1'] +
+    0.66 * 0.05 * df_aggregate_data['Семинары1'] +
+    0.66 * 0.2  * df_aggregate_data['Лабы1']
+)
+
+df_aggregate_data['Оценка за интервал 50%'] = (
+    0.05 * df_aggregate_data['Лекции1'] +
+    0.05 * df_aggregate_data['Семинары1'] +
+    0.2  * df_aggregate_data['Лабы1'] +
+    0.2  * df_aggregate_data['ДЗ1']
+)
+
+df_aggregate_data['Оценка за интервал 66%'] = (
+    df_aggregate_data['Оценка за интервал 50%'] +
+    0.32 * 0.05 * df_aggregate_data['Лекции2'] +
+    0.32 * 0.05 * df_aggregate_data['Семинары2'] +
+    0.32 * 0.2  * df_aggregate_data['Лабы2']
+)
+
+df_aggregate_data['Оценка за интервал 100%'] = (
+    df_aggregate_data['Оценка за интервал 50%'] +
+    0.05 * df_aggregate_data['Лекции2'] +
+    0.05 * df_aggregate_data['Семинары2'] +
+    0.2  * df_aggregate_data['Лабы2'] +
+    0.2  * df_aggregate_data['ДЗ2']
+)
+
+# После расчётов удаляем ненужные поля с оценками
+
+fields_to_drop = [
+    'Лекции1', 'Семинары1', 'Лабы1', 'ДЗ1',
+    'Лекции2', 'Семинары2', 'Лабы2', 'ДЗ2'
+]
+
+df_aggregate_data = df_aggregate_data.drop(columns=fields_to_drop)
+
 
 # Сбрасываем индекс для правильной работы с данными
 df_aggregate_data.reset_index(drop=True, inplace=True)
@@ -364,81 +441,79 @@ df_aggregate_data.reset_index(drop=True, inplace=True)
 
 # Расчет итоговой оценки с объединением по ФИО
 # Для каждой колонки с выполненными заданиями и оцененными заданиями
-for col in df_aggregate_data.columns:
-    if col.startswith("Выполненные задания") or col.startswith("Оцененные задания"):
-        # Инициализация столбца для оценки за интервал
-        interval_percentage = col.split()[-1]  # Например, "10%"
-        df_aggregate_data[f'Оценка за интервал {interval_percentage}'] = (
-            df_aggregate_data.get(f'Оценка за интервал {interval_percentage}', 0)
-        )
-
-        # Для каждого студента в df_aggregate_data
-        for index, row in df_aggregate_data.iterrows():
-            assignments_str = row[col]  # Список выполненных или оцененных заданий через запятую
-            if not isinstance(assignments_str, str):
-                continue  # Пропускаем, если нет данных
-
-            # Разделяем названия заданий по запятой
-            assignments_list = [assignment.strip() for assignment in assignments_str.split("(,)")]
-
-            if len(assignments_list) == 0:
-                continue
-
-            # Рассчитываем вклад для каждого задания
-            for element in assignments_list:
-                if element == "":
-                    continue
-
-                # Если это колонка "Оцененные задания", используем ID из df_weights
-                if col.startswith("Оцененные задания"):
-                    # Ищем элемент в df_weights по Item ID
-                    matching_item = None
-                    for item_name, item_data in weights_dict.items():
-                        if str(item_data.get('Item ID')) == element:
-                            matching_item = item_name
-                            break
-
-                    if not matching_item:
-                        # print(f"Элемент с ID '{element}' не найден в weights_dict")
-                        continue
-
-                    # Получаем название элемента, максимальную оценку и вес из weights_dict
-                    element_name = matching_item
-                    max_score = weights_dict[element_name].get('Max Score', 0)
-                    if pd.isnull(max_score):
-                        max_score = 10
-                    weight = weights_dict[element_name].get('Final Weight', 0)
-
-                else:
-                    # Если это колонка "Выполненные задания", используем название элемента напрямую
-                    # element_name = element
-                    # if element_name not in weights_dict:
-                    #     # print(f"Нет весов для '{element_name}'")
-                    #     continue
-                    #
-                    # max_score = weights_dict[element_name].get('Max Score', 0)
-                    # weight = weights_dict[element_name].get('Final Weight', 0)
-                    continue
-
-                # Проверяем, есть ли соответствующая колонка в df_grades
-                matching_columns = [
-                    col_grade for col_grade in df_grades.columns
-                    if element_name.replace(" ", "") == col_grade.replace(" ", "")
-                ]
-
-                if not matching_columns:
-                    print(f"Элемент '{element_name}' не найден в df_grades")
-                    continue
-
-                # Создаем временный DataFrame для расчета
-                temp_df = df_grades[['Полное имя пользователя', matching_columns[0]]].copy()
-                temp_df['contribution'] = (temp_df[matching_columns[0]].astype(float) * 10 / max_score) * weight
-
-                # Фильтруем только текущего студента
-                student_contribution = temp_df[temp_df['Полное имя пользователя'] == row['Полное имя пользователя']]['contribution'].sum()
-
-                # Добавляем вклад к оценке за интервал
-                df_aggregate_data.at[index, f'Оценка за интервал {interval_percentage}'] += student_contribution
+# for col in df_aggregate_data.columns:
+#     if col.startswith("Выполненные задания") or col.startswith("Оцененные задания"):
+#         # Инициализация столбца для оценки за интервал
+#         interval_percentage = col.split()[-1]  # Например, "10%"
+#         df_aggregate_data[f'Оценка за интервал {interval_percentage}'] = (
+#             df_aggregate_data.get(f'Оценка за интервал {interval_percentage}', 0)
+#         )
+#
+#         # Для каждого студента в df_aggregate_data
+#         for index, row in df_aggregate_data.iterrows():
+#             assignments_str = row[col]  # Список выполненных или оцененных заданий через запятую
+#             if not isinstance(assignments_str, str):
+#                 continue  # Пропускаем, если нет данных
+#
+#             # Разделяем названия заданий по запятой
+#             assignments_list = [assignment.strip() for assignment in assignments_str.split("(,)")]
+#
+#             if len(assignments_list) == 0:
+#                 continue
+#
+#             # Рассчитываем вклад для каждого задания
+#             for element in assignments_list:
+#                 if element == "":
+#                     continue
+#
+#                 # Если это колонка "Оцененные задания", используем ID из df_weights
+#                 # if col.startswith("Оцененные задания"):
+#                 #     # Ищем элемент в df_weights по Item ID
+#                 #     matching_item = None
+#                 #     for item_name, item_data in weights_dict.items():
+#                 #         if str(item_data.get('Item ID')) == element:
+#                 #             matching_item = item_name
+#                 #             break
+#                 #
+#                 #     if not matching_item:
+#                 #         # print(f"Элемент с ID '{element}' не найден в weights_dict")
+#                 #         continue
+#                 #
+#                 #     # Получаем название элемента, максимальную оценку и вес из weights_dict
+#                 #     element_name = matching_item
+#                 #     max_score = weights_dict[element_name].get('Max Score', 0)
+#                 #     weight = weights_dict[element_name].get('Final Weight', 0)
+#                 #
+#                 # else:
+#                 #     Если это колонка "Выполненные задания", используем название элемента напрямую
+#                 element_name = element
+#                 if element_name not in weights_dict:
+#                     print(f"Нет весов для '{element_name}'")
+#                     continue
+#
+#                 max_score = weights_dict[element_name].get('Max Score', 0)
+#                 weight = weights_dict[element_name].get('Final Weight', 0)
+#                     # continue
+#
+#                 # Проверяем, есть ли соответствующая колонка в df_grades
+#                 matching_columns = [
+#                     col_grade for col_grade in df_grades.columns
+#                     if element_name.replace(" ", "") == col_grade.replace(" ", "")
+#                 ]
+#
+#                 if not matching_columns:
+#                     print(f"Элемент '{element_name}' не найден в df_grades")
+#                     continue
+#
+#                 # Создаем временный DataFrame для расчета
+#                 temp_df = df_grades[['Полное имя пользователя', matching_columns[0]]].copy()
+#                 temp_df['contribution'] = (temp_df[matching_columns[0]].astype(float) * 10 / max_score) * weight
+#
+#                 # Фильтруем только текущего студента
+#                 student_contribution = temp_df[temp_df['Полное имя пользователя'] == row['Полное имя пользователя']]['contribution'].sum()
+#
+#                 # Добавляем вклад к оценке за интервал
+#                 df_aggregate_data.at[index, f'Оценка за интервал {interval_percentage}'] += student_contribution
 
 # Заполнение пропусков нулями
 result = df_aggregate_data.fillna(0)
@@ -492,7 +567,7 @@ for period in periods:
             print(f"Внимание: В колонке '{col}' нет значения 1 после нормализации.")
 
 # Сохранение результата в новый Excel-файл
-output_file = '../../data/9_Агрегированные_данные_проценты_c20%.xlsx'
+output_file = '../../data/7_Агрегированные_данные_проценты_с20%.xlsx'
 result.to_excel(output_file, index=False)
 
 print(f"Агрегированные данные успешно сохранены в файл: {output_file}")
