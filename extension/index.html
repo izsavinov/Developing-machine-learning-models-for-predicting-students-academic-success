@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Student Dashboard</title>
+  <!-- STYLES -->
+  <link rel="stylesheet" href="css/style.css">
+
+  <!-- LIBS -->
+  <script src="lib/chart.js"></script>
+</head>
+<body>
+
+  <div id="auth-form" class="hidden">
+    <p class="header">Авторизация</p>
+    <form id="login-form" novalidate>
+      <input class="input" type="text" id="fio" placeholder="ФИО" required>
+      <label class="error hidden" id="error_fio" for="fio">Не введено ФИО</label>
+      <input class="input" type="password" id="password" placeholder="Пароль" required>
+      <label class="error hidden" id="error_password" for="fio">Не введен пароль</label>
+
+      <label class="error unvisible" id="error_data">Неверные данные</label>
+      <button class="btn" type="submit">Войти</button>
+    </form>
+  </div>
+
+  <div id="dashboard" class="hidden">
+
+    <div class="command-panel hidden" id="commandPanel">
+      <div class="command-item" id="exitBtn">Выйти</div>
+    </div>
+
+    <!-- Модальное окно подтверждения выхода -->
+    <div class="modal hidden" id="exitModal">
+      <div class="modal-content">
+        <p>Вы действительно хотите выйти?</p>
+        <div class="modal-buttons">
+          <button class="modal-btn cancel-btn" id="cancelExit">Отмена</button>
+          <button class="modal-btn confirm-btn" id="confirmExit">Выйти</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="hor-block">
+      <p class="hello header left">Здравствуйте, <span id="user-fio"></span>!</p>
+      <button class="menu-button" id="menuBtn">⋮</button>
+    </div>
+
+    <div id="no_data" class="hidden img_block">
+      <img class="img" src="images/not_found.svg">
+      <p class="no_data_p">У Вас нет курсов</p>
+
+    </div>
+
+    <div id="data" class="hidden">
+
+
+    <p class="course">Курс:</p>
+    <select class="select" id="course-select"></select>
+
+     <p class="p-param">Студент</p>
+    <div class="marks" id="metrics-container">
+
+      <div class="mark-div-left">
+        <span class="mark-p curr" id="current-assessment"></span>
+        <p class="span-info">Текущая оценка</p>
+      </div>
+
+      <div class="mark-div-right">
+        <span class="mark-p pred" id="predictive-assessment"></span>
+        <p class="span-info">Прогнозная оценка</p>
+      </div>
+
+    </div>
+
+    <p class="p-param">Группа</p>
+    <div class="marks marks-last" id="metrics-container-mean">
+
+      <div class="mark-div-left">
+        <span class="mark-p curr" id="current-assessment-mean"></span>
+        <p class="span-info">Текущая оценка</p>
+      </div>
+
+      <div class="mark-div-right">
+        <span class="mark-p pred" id="predictive-assessment-mean"></span>
+        <p class="span-info">Прогнозная оценка</p>
+      </div>
+
+    </div>
+
+    <p class="course">Параметр:</p>
+    <select class="select" id="parameter-select"></select>
+
+    <div class="chart-type-controls">
+  <button class="chart-type-btn active tab-left" data-type="bar">Столбчатый</button>
+  <button class="chart-type-btn" data-type="horizontalBar">Линейчатый</button>
+  <button class="chart-type-btn tab-right" data-type="line">Линейный</button>
+</div>
+    <div style="display: inline-flex">
+      <div style="max-width: 300px; width: 300px">
+        <canvas id="p5"></canvas>
+      </div>
+    </div>
+      </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

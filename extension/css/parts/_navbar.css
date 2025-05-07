@@ -1,0 +1,73 @@
+.chart-type-tabs {
+  display: flex;
+  margin-bottom: 15px;
+  border-bottom: 1px solid #ddd;
+}
+
+.chart-type-tab {
+  padding: 8px 15px;
+  cursor: pointer;
+  margin-right: 5px;
+  border-radius: 4px 4px 0 0;
+  background: #f5f5f5;
+}
+
+.chart-type-tab.active {
+  background: #007bff;
+  color: white;
+}
+
+#p5 {
+    height: 300px;
+    width: 100%;
+  }
+
+.chart-type-controls {
+  display: flex;
+  justify-content: center;
+  background-color: transparent; /* Убираем белый фон */
+  width: 100%;
+  padding: 0; /* Убираем внутренние отступы */
+  margin-bottom: 20px;
+  margin-top: 20px;
+  border-radius: 4px;
+  border: 1px solid #E5E5E5;
+  height: 100%;
+}
+
+.tab-left {
+    border-radius: 4px 0px 0px 4px;
+}
+
+.tab-right {
+    border-radius: 0px 4px 4px 0px;
+}
+
+.chart-type-btn {
+  padding: 8px 1px;
+  border: none;
+  background-color: #fff; /* Прозрачный фон */
+  color: #333;
+  width: 100%;
+  font-size: 14px;
+  cursor: pointer;
+  height: 100%;
+  margin: 0px;
+}
+
+.chart-type-btn.active {
+  color: #8DCAFF; /* Синий цвет для активной кнопки */
+}
+.chart-type-btn:hover {
+}
+
+.chart-type-btn.active {
+  background-color: #66B2FF;
+  color: white;
+}
+
+.chart-type-btn:focus {
+  outline: none;
+}
+
+

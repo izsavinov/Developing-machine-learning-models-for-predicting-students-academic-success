@@ -25,7 +25,7 @@ pd.set_option('display.max_rows', None)
 pd.set_option('display.max_columns', None)
 
 # --- Константы и Загрузка данных ---
-periods = ["25%", "33%", "50%", "66%"]
+periods = ["20%", "33%", "50%", "66%"]
 file_path = '../data/Общее_Агрегированные_данные_проценты.xlsx'
 base_feature_names = [
     "Число входов в курс", "Число просмотров модулей", "Число просмотров своих ошибок",
@@ -94,7 +94,8 @@ def train_single_fold(X_train_fold, y_train_fold, X_val_fold, y_val_fold, model_
     epochs = train_params['epochs']
 
     train_dataset = TensorDataset(X_train_fold, torch.tensor(y_train_fold.values, dtype=torch.float32).unsqueeze(1))
-    train_loader = DataLoader(train_dataset, batch_size=train_params['batch_size'], shuffle=True, pin_memory=device.type == 'cuda')
+    train_loader = DataLoader(train_dataset, batch_size=train_params['batch_size'], shuffle=True,
+                              pin_memory=device.type == 'cuda')
     val_dataset = TensorDataset(X_val_fold, torch.tensor(y_val_fold.values, dtype=torch.float32).unsqueeze(1))
     val_loader = DataLoader(val_dataset, batch_size=train_params['batch_size'], pin_memory=device.type == 'cuda')
 
@@ -197,9 +198,9 @@ def objective_lstm_cv(trial, X_train_val_tensor, y_train_val_series, input_size,
 
     # --- Параметры обучения (применяются к каждому фолду) ---
     learning_rate = trial.suggest_float('learning_rate', 1e-4, 1e-2, log=True) # Немного сузим LR
-    optimizer_name = trial.suggest_categorical('optimizer', ['AdamW', 'Adam']) # Уберем RMSprop для простоты
+    optimizer_name = trial.suggest_categorical('optimizer', ['AdamW', 'Adam', 'RMSprop']) # Уберем RMSprop для простоты
     weight_decay = trial.suggest_float('weight_decay', 1e-7, 1e-4, log=True) # Сузим WD
-    batch_size = trial.suggest_categorical('batch_size', [32, 64]) # Меньше батчи для CV
+    batch_size = trial.suggest_categorical('batch_size', [16, 32, 64]) # Меньше батчи для CV
     # Уменьшим параметры для ускорения CV внутри Optuna
     patience_value = trial.suggest_int('patience', 7, 15)
     epochs = 100 # Меньше эпох для CV
@@ -258,7 +259,7 @@ def objective_lstm_cv(trial, X_train_val_tensor, y_train_val_series, input_size,
     return avg_cv_rmse # Optuna будет минимизировать средний RMSE по фолдам
 
 # --- Основная функция обработки периода для LSTM с CV в Optuna ---
-def process_period_lstm_cv(period_index, df_clean, base_feature_names, device, n_trials=50, use_pca=False, pca_variance=0.95, models_save_dir="saved_lstm_models_cv", n_splits_optuna=5):
+def process_period_lstm_cv(period_index, df_clean, base_feature_names, device, n_trials=50, use_pca=False, pca_variance=0.9, models_save_dir="saved_lstm_models_cv", n_splits_optuna=5):
     """
     Выполняет цикл обработки для LSTM: подготовка данных, Optuna с K-Fold CV,
     обучение финальной модели, оценка и сохранение.
@@ -525,8 +526,8 @@ def process_period_lstm_cv(period_index, df_clean, base_feature_names, device, n
 if __name__ == "__main__":
     import sys # Для проверки наличия torchviz в finally блоке
     all_results_lstm_cv = []
-    N_OPTUNA_TRIALS_LSTM_CV = 1 # Уменьшим для теста, CV значительно дольше
-    USE_PCA_LSTM_CV = False     # Пример: отключим PCA для CV
+    N_OPTUNA_TRIALS_LSTM_CV = 150 # Уменьшим для теста, CV значительно дольше
+    USE_PCA_LSTM_CV = True     # Пример: отключим PCA для CV
     MODELS_SAVE_DIR_LSTM_CV = "saved_lstm_models_cv" # Отдельная папка
 
     print(f"\n=== Начало процесса оптимизации LSTM с CV ({N_OPTUNA_TRIALS_LSTM_CV} триалов/период, PCA: {USE_PCA_LSTM_CV}) ===")
@@ -536,7 +537,7 @@ if __name__ == "__main__":
     for idx, _ in enumerate(periods):
         period_result_lstm_cv = process_period_lstm_cv( # <<< Вызываем новую функцию
             idx, df_cleaned, base_feature_names, device,
-            n_trials=N_OPTUNA_TRIALS_LSTM_CV, use_pca=USE_PCA_LSTM_CV, pca_variance=0.95,
+            n_trials=N_OPTUNA_TRIALS_LSTM_CV, use_pca=USE_PCA_LSTM_CV, pca_variance=0.9,
             models_save_dir=MODELS_SAVE_DIR_LSTM_CV, n_splits_optuna=5 ) # <<< Указываем число фолдов
         if period_result_lstm_cv: all_results_lstm_cv.append(period_result_lstm_cv)
 

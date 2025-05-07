@@ -1,0 +1,123 @@
+/* Стили для выпадающего списка курсов */
+.select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  width: 100%;
+  max-width: 400px;
+  padding: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  color: #373741;
+  background-color: #fff;
+  border: 1px solid #E5E5E5;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 15px center;
+  background-size: 14px;
+}
+
+.course {
+  font-size: 13px;
+  margin-bottom: 4px;
+  margin-top: 0px;
+}
+
+.select:hover {
+}
+
+.select:focus {
+  outline: none;
+
+}
+
+/* Стили для опций */
+.select option {
+  padding: 12px 15px;
+  background: #fff;
+  color: #373741;
+}
+
+
+.select option:checked {
+  background-color: #E7F5FF;
+}
+
+/* Обертка для позиционирования (если нужно) */
+.select-wrapper {
+  position: relative;
+  margin: 20px 0;
+  width: 100%;
+  max-width: 400px;
+}
+
+/* Кастомная стрелка (альтернативный вариант) */
+.select-wrapper::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 15px;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 5px solid #666;
+  pointer-events: none;
+  transition: transform 0.2s ease;
+}
+
+/* Анимация при фокусе */
+.select:focus + .select-wrapper::after {
+  transform: translateY(-50%) rotate(180deg);
+}
+
+
+select.decorated option:hover {
+    box-shadow: 0 0 10px 100px #1882A8 inset;
+}
+
+.custom-select {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  font-size: 14px;
+}
+
+.selected-option {
+  padding: 8px 15px;
+  border: 1px solid #E5E5E5;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: white;
+}
+
+.options-container {
+  display: none;
+  position: absolute;
+  width: 100%;
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #E5E5E5;
+  border-radius: 8px;
+  background: white;
+  z-index: 1000;
+  margin-top: 5px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.option {
+  padding: 10px 15px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.option:hover {
+  background: #E7F5FF;
+}

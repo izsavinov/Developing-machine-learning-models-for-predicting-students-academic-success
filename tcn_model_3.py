@@ -20,15 +20,12 @@ import traceback
 from torchinfo import summary
 import sys  # Для проверки импорта torchviz в finally
 
-warnings.filterwarnings("ignore", category=UserWarning, module='torch.nn.modules.lazy')
-warnings.filterwarnings("ignore", category=FutureWarning)
-
 # --- Настройки Pandas ---
 pd.set_option('display.max_rows', None)
 pd.set_option('display.max_columns', None)
 
 # --- Константы и Загрузка данных ---
-periods = ["25%", "33%", "50%", "66%"]
+periods = ["20%", "33%", "50%", "66%"]
 file_path = '../data/Общее_Агрегированные_данные_проценты.xlsx'
 base_feature_names = [
     "Число входов в курс", "Число просмотров модулей", "Число просмотров своих ошибок",
@@ -452,7 +449,7 @@ def objective_tcn_cv(trial, X_train_val_tensor, y_train_val_series, num_input_ch
 
 # --- Основная функция обработки периода для TCN с CV в Optuna ---
 def process_period_tcn_cv(period_index, df_clean, base_feature_names, device, n_trials=50, use_pca=False,
-                          pca_variance=0.95, models_save_dir="saved_tcn_models_cv", n_splits_optuna=5):
+                          pca_variance=0.9, models_save_dir="saved_tcn_models_cv", n_splits_optuna=5):
     """Выполняет цикл обработки для TCN с K-Fold CV в Optuna."""
     current_period_label = periods[period_index];
     periods_to_include = periods[:period_index + 1]
@@ -771,7 +768,7 @@ def process_period_tcn_cv(period_index, df_clean, base_feature_names, device, n_
 # --- Основной цикл запуска для TCN с CV ---
 if __name__ == "__main__":
     all_results_tcn_cv = []
-    N_OPTUNA_TRIALS_TCN_CV = 1  # Уменьшим для теста
+    N_OPTUNA_TRIALS_TCN_CV = 150  # Уменьшим для теста
     USE_PCA_TCN_CV = True
     MODELS_SAVE_DIR_TCN_CV = "saved_tcn_models_cv"  # Отдельная папка
 

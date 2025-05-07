@@ -1,0 +1,210 @@
+/* Общие стили */
+html, body {
+  min-width: 300px;
+  min-height: 400px;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 16px;
+  background: #F2F9FF;
+  font-family: sans-serif;
+}
+
+.header {
+    font-size: 16px;
+    margin-bottom: 0px;
+    text-align: center;
+}
+
+.left {
+    text-align: left;
+    margin-bottom: 20px;
+}
+
+.tabs {
+    display: flex;
+    border: 1px solid #E2F1FF;
+    height: 30px;
+    margin-top: 10px;
+    margin-bottom: 20px;
+    width: 130px;
+}
+
+.tab {
+    text-align: center;
+    color: #000;
+    width: 100%;
+    font-color: 14px;
+    background-color: #fff;
+    display: flex;         /* Добавляем flex-контейнер */
+    align-items: center;   /* Выравниваем элементы по вертикали */
+    justify-content: center; /* Выравниваем элементы по горизонтали (если нужно) */
+}
+
+.active {
+    background-color: #4DC2FF;
+    color: #fff;
+}
+
+.hidden {
+  display: none;
+}
+
+.error {
+    color: #FF4C4C;
+    margin-top: 4px;
+    margin-bottom: 0px;
+}
+
+
+.btn {
+    border-radius: 9px;
+    background-color: #018ED7;
+    color: #fff;
+    border: none;
+    height: 40px;
+    cursor: pointer;
+}
+
+#error_data {
+    margin-top: 10px;
+}
+
+.unvisible {
+    visibility: hidden;
+}
+
+.input {
+    border: 1px solid #E5E5E5;
+    border-radius: 9px;
+    margin-top: 18px;
+    font-size: 14px;
+}
+
+.input_error {
+    border: 1px solid #FF4C4C;
+    border-radius: 9px;
+    margin-top: 18px;
+}
+
+
+input:focus {
+  outline: none;
+}
+
+#auth-form, #dashboard {
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+}
+
+label {
+  margin-top: 10px;
+}
+
+input, button {
+  margin-top: 5px;
+  padding: 8px;
+}
+
+#charts-container {
+  margin-top: 20px;
+  flex-grow: 1;
+}
+
+canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Кнопка выхода */
+#logout-btn {
+  margin-top: 10px;
+  padding: 5px 10px;
+  background-color: #ff4d4d;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+#logout-btn:hover {
+  background-color: #fff;
+}
+
+.marks {
+    margin-top: 0px;
+    display: flex;
+    text-align: center;
+    font-size: 13px;
+    width: 100%;
+    margin-bottom: 10px;
+}
+
+.marks-last {
+    margin-bottom: 20px;
+}
+
+
+.p-param {
+    font-size: 14px;
+    margin-bottom: 5px;
+}
+
+.span-info {
+    margin-top: 3px;
+    padding-top: 0px;
+}
+
+
+.mark-div-left {
+    background-color: #fff;
+    border: 1px solid #E5E5E5;
+    border-radius: 9px;
+    width: 100%;
+    padding-top: 10px;
+}
+
+.mark-p {
+    font-size: 16px;
+    margin-bottom: 0px;
+}
+
+.mark-div-right {
+    margin-left: 12px;
+    background-color: #fff;
+    border: 1px solid #E5E5E5;
+    border-radius: 9px;
+    width: 100%;
+    padding-top: 10px;
+}
+
+.mark {
+    border: 1px solid #000;
+
+}
+
+#no_data {
+  display: flex;
+  flex-direction: column; /* Вертикальное расположение элементов */
+  justify-content: center; /* Выравнивание по вертикали */
+  align-items: center;    /* Выравнивание по горизонтали */
+  text-align: center;     /* Центрирование текста в абзаце */ /* Опционально - если текст не центруется */
+}
+
+#no_data .img {
+  /* Дополнительные стили для картинки, если нужно */
+  max-width: 100%;       /*  Чтобы картинка не вылезала за границы блока (опционально) */
+  height: auto;          /*  Чтобы сохранить пропорции (опционально) */
+}
+
+#no_data .no_data {
+  /* Дополнительные стили для текста */
+}
+
+.no_data_p {
+    font-size: 14px;
+}

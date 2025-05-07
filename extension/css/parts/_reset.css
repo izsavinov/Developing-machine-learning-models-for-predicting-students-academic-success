@@ -1,0 +1,119 @@
+/* Меню и панель команд */
+.menu-button {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #555;
+  padding: 5px 10px;
+  z-index: 100;
+}
+
+.hello {
+    margin-top: 0px;
+
+}
+
+.menu-button:hover {
+  background-color: #fff;
+  border-radius: 50%;
+}
+
+.command-panel {
+  position: absolute;
+  top: 60px;
+  right: 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  width: 100px;
+  z-index: 100;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.command-item {
+  padding: 12px 16px;
+  cursor: pointer;
+  border-bottom: 1px solid #f0f0f0;
+  transition: background 0.2s;
+  font-size: 14px;
+}
+
+.command-item:last-child {
+  border-bottom: none;
+}
+
+.command-item:hover {
+
+}
+
+
+/* Модальное окно */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0,0,0,0.5);
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-content {
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  width: 250px;
+  text-align: center;
+  font-size: 14px;
+}
+
+.modal-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+  justify-content: center;
+  width: 100%;
+}
+
+.modal-btn {
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: none;
+  width: 100%;
+  height: 35px;
+  font-size: 12px;
+  font-size: 14px;
+}
+
+.confirm-btn {
+  background-color: #018ED7;
+  color: white;
+}
+
+.cancel-btn {
+  border: 1px solid #E5E5E5;
+  background-color: #fff;
+}
+
+/* Анимации */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Утилиты */
+.hidden {
+  display: none !important;
+}
+
+.hor-block {
+    display: flex;
+}

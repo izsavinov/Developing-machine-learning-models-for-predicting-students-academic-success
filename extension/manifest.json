@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+  },
+  "web_accessible_resources": [{
+    "resources": ["lib/*"],
+    "matches": ["<all_urls>"]
+  }],
+  "name": "Student Dashboard",
+  "version": "1.0",
+  "description": "Расширение для отслеживания успеваемости студентов.",
+  "side_panel": {
+    "default_path": "index.html"
+  },
+  "permissions": [
+    "cookies",
+    "storage",
+    "tabs",
+    "sidePanel",
+    "http://212.41.9.83/*",  // Разрешение на доступ к указанному домену
+    "http://localhost:5000/*" // Разрешение на доступ к localhost
+  ],
+  "host_permissions": [
+    "http://212.41.9.83/*",  // Также нужны host_permissions
+    "http://localhost:5000/*"
+  ],
+  "background": {
+    "service_worker": "script.js"
+  },
+  "action": {
+    "default_title": "Click to open sidebar",
+    "default_icon": {
+      "16": "icon.png",
+      "48": "icon.png",
+      "128": "icon.png"
+    }
+  }
+}

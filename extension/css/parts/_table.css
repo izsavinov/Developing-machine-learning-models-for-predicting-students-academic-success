@@ -1,0 +1,38 @@
+table {
+  font-size: 14px;
+  background: #FFFFFF;
+  max-width: 70%;
+  width: 70%;
+  border-collapse: collapse;
+}
+th {
+  font-weight: normal;
+  color: #A19F9F;
+  border-bottom: 2px solid #C0BFBF;
+  padding: 10px 0px;
+  position: relative;
+  padding-right: 0px !important;
+  text-align: left;
+}
+
+td {
+  color: #000000;
+  padding: 9px 8px;
+  transition: .3s linear;
+  border-bottom: 1px solid #DEDEDE;
+  padding-left: 0px;
+  margin-left: 0px;
+}
+
+td:hover {
+  color: #A19F9F
+}
+
+th>.fa{
+  position: absolute;
+  z-index: 2;
+  right: 15px;
+  top:50%;
+  transform: translateY(-50%);
+}
+

@@ -13,6 +13,9 @@ import traceback # Добавим для вывода стека ошибок
 
 app = Flask(__name__)
 
+# Показывать все колонки
+pd.set_option('display.max_columns', None)
+
 # Загрузка метаданных о курсах
 COURSES_METADATA_PATH = "../data/courses_metadata.xlsx"
 
@@ -20,10 +23,10 @@ COURSES_METADATA_PATH = "../data/courses_metadata.xlsx"
 PASSWORDS_PATH = "../data/passwords.xlsx"
 
 BEST_MODEL_PATHS_PER_PERIOD = {
-    "25%": "saved_tcn_models_cv/inference_tcn_period_25pct_pca_True.pth",
-    "33%": "best_knn_model_period_33%.joblib",
+    "20%": "saved_lstm_models_cv\inference_lstm_period_20pct_pca_False.pth",
+    "33%": "saved_tcn_models_cv/inference_tcn_period_33pct_pca_True.pth",
     "50%": "saved_tcn_models_cv/inference_tcn_period_50pct_pca_True.pth",
-    "66%": "best_knn_model_period_66%.joblib",
+    "66%": "saved_tcn_models_cv/inference_tcn_period_66pct_pca_True.pth",
 }
 
 def load_courses_metadata():
@@ -328,8 +331,8 @@ def login():
     except Exception as e:
         return jsonify({"error": f"Произошла ошибка: {str(e)}"}), 500
 
-@app.route('/get_available_courses', methods=['GET'])
-def get_available_courses():
+@app.route('/available_courses', methods=['GET'])
+def available_courses():
     """
     Возвращает список всех актуальных курсов для текущего студента.
     Использует Basic Auth для авторизации.
@@ -366,8 +369,10 @@ def get_available_courses():
             (pd.to_datetime(metadata_df["ДатаОкончания"]) >= current_date)
         ]
 
-        # Преобразование в список курсов
-        available_courses = list(student_courses['Курс'])
+        available_courses = [
+            {"id": row['ИдКурса'], "name": row['Курс']}
+            for _, row in student_courses.iterrows()
+        ]
 
         # Возвращаем ответ в формате JSON
         return jsonify({
@@ -378,8 +383,8 @@ def get_available_courses():
     except Exception as e:
         return jsonify({"error": f"Произошла ошибка: {str(e)}"}), 500
 
-@app.route('/course_data/<course_name>', methods=['GET'])
-def get_course_data(course_name):
+@app.route('/course_data/<course_id>', methods=['GET'])
+def course_data(course_id):
     """
     Обрабатывает запрос от фронтенда и возвращает данные по выбранному курсу.
     """
@@ -395,8 +400,8 @@ def get_course_data(course_name):
         decoded_credentials = base64.b64decode(encoded_credentials).decode("utf-8")
         fio, password = decoded_credentials.split(":")
 
-        if not fio or not course_name:
-            return jsonify({"error": "Необходимо указать ФИО, пароль и курс"}), 400
+        if not fio or not course_id:
+            return jsonify({"error": "Необходимо указать ФИО и курс"}), 400
 
         # Загрузка данных о пользователях (ФИО и пароли)
         passwords_df = load_passwords()
@@ -409,9 +414,8 @@ def get_course_data(course_name):
         # Загрузка метаданных о курсах
         metadata_df = load_courses_metadata()
         student_courses = metadata_df[metadata_df["ФИО"] == fio]
-
         # Поиск информации о курсе
-        course_info = student_courses[student_courses["Курс"] == course_name]
+        course_info = student_courses[student_courses["ИдКурса"] == int(course_id)]
         if course_info.empty:
             return jsonify({"error": "Курс не найден для данного студента"}), 404
 
@@ -428,7 +432,7 @@ def get_course_data(course_name):
         student_data = df[df["Полное имя пользователя"] == fio].to_dict(orient="records")[0]
 
         # --- Определение текущего периода студента для предсказания ---
-        periods_numeric = [25, 33, 50, 66]
+        periods_numeric = [20, 33, 50, 66]
         assessment_columns = [f'Оценка за интервал {p}%' for p in periods_numeric]
         current_period_for_prediction = 0  # Период, на основе которого делаем прогноз
 
@@ -473,7 +477,7 @@ def get_course_data(course_name):
 
         response = OrderedDict()
         response["fio"] = fio
-        response["course_name"] = course_name
+        response["course_id"] = course_id
         response["period"] = f'{current_period_for_prediction}%'
 
         # --- Изменения здесь ---
